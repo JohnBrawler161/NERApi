@@ -1,0 +1,61 @@
+import ast
+import re
+
+from loguru import logger
+from promptify import Prompter, Pipeline, OpenAI
+
+from app.models import NERData
+from app.settings import settings
+
+model = OpenAI(api_key=settings.openai_key)
+prompter = Prompter('ner.jinja')
+pipe = Pipeline(prompter, model, structured_output=False)
+
+
+class NERService:
+    @classmethod
+    def process(cls, data: NERData) -> list[dict]:
+        try:
+            result = pipe.fit(
+                domain=data.domain,
+                text_input=data.text_input,
+                description=data.description,
+                labels=data.labels,
+            )
+
+            return cls.serialize_response(result)
+        except Exception as e:
+            logger.error(f"Error occurred: {str(e)}")
+            raise
+
+    @classmethod
+    def serialize_response(cls, resp: list[dict]) -> list[dict]:
+        result: list[dict] = []
+
+        for elem in resp:
+            for choice in elem.get("choices", []):
+                message = choice.get("message", {}).get("content")
+                if not message:
+                    continue
+                result.extend(cls._convert_to_dict(message))
+
+        return result
+
+    @classmethod
+    def _convert_to_dict(cls, data: str) -> list[dict]:
+        try:
+            return cls.parse_str_data(data)
+        except Exception as e:
+            logger.error(f"Error occurred while loading: {e}")
+            raise
+
+    @staticmethod
+    def parse_str_data(data: str) -> list[dict]:
+        # Match all occurrences of dictionaries using regular expressions
+        dict_pattern = r"{[^{}]*}"
+        dicts = re.findall(dict_pattern, data)
+
+        # Parse each matched dictionary string into a Python dictionary
+        parsed_data = [ast.literal_eval(d) for d in dicts]
+
+        return parsed_data
