@@ -6,6 +6,7 @@ from promptify import Prompter, Pipeline, OpenAI
 
 from app.models import NERData
 from app.settings import settings
+from app.sample_data import one_shot
 
 model = OpenAI(api_key=settings.openai_key)
 prompter = Prompter('ner.jinja')
@@ -13,14 +14,24 @@ pipe = Pipeline(prompter, model, structured_output=False)
 
 
 class NERService:
+    DOMAIN = "real estate"
+    LABELS = [
+        "INTENT", "TWO STORY", "BUDGET", "PETS", "GARAGE",
+        "POOL", "AC", "FLOOR SPACE", "WATERFRONT", "VIEW", "YEAR BUILT"
+    ]
+    DESCRIPTION = ("Below Paragraph is a description a home someone is interested in buying. "
+                   "t includes a number of different features they desire, which are all related "
+                   "to home features and amenities.")
+
     @classmethod
     def process(cls, data: NERData) -> list[dict]:
         try:
             result = pipe.fit(
-                domain=data.domain,
+                domain=cls.DOMAIN,
                 text_input=data.text_input,
-                description=data.description,
-                labels=data.labels,
+                description=cls.DESCRIPTION,
+                labels=cls.LABELS,
+                one_shot=one_shot
             )
 
             return cls.serialize_response(result)
