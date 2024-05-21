@@ -6,7 +6,7 @@ from promptify import Prompter, Pipeline, OpenAI
 
 from app.models import NERData
 from app.settings import settings
-from app.sample_data import one_shot
+from app.sample_data import prompts
 
 model = OpenAI(api_key=settings.openai_key)
 prompter = Prompter('ner.jinja')
@@ -31,7 +31,7 @@ class NERService:
                 text_input=data.text_input,
                 description=cls.DESCRIPTION,
                 labels=cls.LABELS,
-                one_shot=one_shot
+                examples=prompts
             )
 
             return cls.serialize_response(result)
